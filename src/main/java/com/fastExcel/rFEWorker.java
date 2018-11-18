@@ -1,27 +1,103 @@
 package com.fastExcel;
 
+
+import org.apache.commons.io.ByteOrderMark;
+import org.apache.commons.io.input.BOMInputStream;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.poi.ss.usermodel.DateUtil;
+import io.minio.MinioClient;
+import io.minio.errors.*;
+import org.apache.commons.io.ByteOrderMark;
+import org.apache.commons.io.input.BOMInputStream;
 import org.dhatim.fastexcel.reader.Cell;
 import org.dhatim.fastexcel.reader.ReadableWorkbook;
 import org.dhatim.fastexcel.reader.Row;
 import org.dhatim.fastexcel.reader.Sheet;
+//import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigDecimal;
+import java.net.URL;
+import java.net.URLConnection;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.chrono.ChronoLocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.xmlpull.v1.XmlPullParserException;
+
+import static com.fastExcel.DataSourceConfig.sourceTypes.MY_FILES;
+import static com.fastExcel.MinioProperties.*;
 
 public class rFEWorker implements fastExcel {
 
-    private Set<String> columnNames;
+    @Value("${minio.endpoint}") String minioEndpoint = "http://127.0.0.1:9000";
+    @Value("${minio.accessKey}") String minioAccessKey = "P3OTQAH8VBMJCUS9ZBJG";
+    @Value("${minio.secretKey}") String minioSecretKey = "Erj57EC3p4D9EKyd3ZBY+6lLV53fnpA72769EQDk";
+    @Value("${minio.bucket.name}") String minioBucketName = "input";
 
-    private static final String FILE = "/simple.xlsx";
+    private static final Logger log = LoggerFactory.getLogger(rFEWorker.class);
+
+    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private static SimpleDateFormat FORMAT = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
+
+    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm");
+
+    private static final String FILE_SIMPLE = "/simple.xlsx";
 
     private static final String FILE2 = "/data.xlsx";
 
-    public rFEWorker(Set<String> columnNames) {
+    private static final String FILE_ERROR = "/ErrorTypes.xlsx";
+    private Object LocalDateTime;
+
+    private String filePath;
+    private String fileUrl;
+    private String sheetName;
+
+    // Determine datasource type (XLS or XLSX)
+    private String type;
+
+    // Determine the storage of datasource (LOCAL or MY_FILES)
+    // LOCAL: datasource stores in HDFS
+    // MY_FILES: datasource stores in MINIO
+    private String fileSource;
+
+    // Contain column names that will be imported
+    private Set<String> columnNames;
+
+    // Contain minio configuration info
+    // keys: ENDPOINT, ACCESS_KEY, SECRET_KEY, BUCKET_NAME
+    @Autowired
+    private Map<String, String> minioConfig;
+
+    public rFEWorker(Map<String, String> minioConfig) {
+        this.minioConfig = minioConfig;
+    }
+
+    public rFEWorker(String filePath, String fileUrl, String sheetName,
+                     Set<String> columnNames, String type, String fileSource) {
+        this.filePath = filePath;
+        this.fileUrl = fileUrl;
+        this.sheetName = sheetName;
         this.columnNames = columnNames;
+        this.type = type;
+        this.fileSource = fileSource;
     }
 
     private static InputStream openResource(String name) {
@@ -38,8 +114,17 @@ public class rFEWorker implements fastExcel {
     @Override
     public Iterator<Map<String, String>> getIterator() {
 
-//        InputStream is = openResource(FILE);
-        InputStream is = openResource(FILE2);
+//        InputStream is = openResource(FILE_SIMPLE);
+//        InputStream is = openResource(FILE2);
+//        InputStream is = openResource(FILE_ERROR);
+
+        InputStream is = null;
+        try {
+            is = getInputStream(filePath, fileUrl);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
 
         ReadableWorkbook wb = null;
         try {
@@ -48,15 +133,18 @@ public class rFEWorker implements fastExcel {
             e.printStackTrace();
         }
 
-        Optional<Sheet> sheet =  wb.findSheet("Sheet1");
+//        Optional<Sheet> sheet =  wb.findSheet("Sheet1");
+        Optional<Sheet> sheet =  wb.findSheet(this.sheetName);
+//        Optional<Sheet> sheet =  wb.findSheet("RawErrors");
 
         Stream<Row> rows = null;
-        Sheet sheet1 = null;
-        Row header = null;
+        Sheet sheet1;
+        Row header;
         Iterator<Row> rowIt = null;
         List<String> columns = null;
 
-        System.out.print("hello");
+//        sheet1 = sheet.get();
+
         if (sheet.isPresent()) {
 
             sheet1 = sheet.get();
@@ -126,26 +214,86 @@ public class rFEWorker implements fastExcel {
 
             switch (cell.getType()) {
                 case STRING:
-                    data.add(cell.getValue().toString());
+                    data.add(cell.asString());
                     break;
                 case NUMBER:
-//                    if (DateUtil.isCellDateFormatted(cell.getValue().toString())) {
-//                        data.add(dateFormat.format(cell.getDateCellValue()));
-//                    } else {
-//                        data.add(String.valueOf(cell.getNumericCellValue()));
-//                    }
-//                    data.add(cell.RawValue());
+//                    data.add(String.valueOf(cell.asDate()));
+                    data.add(String.valueOf(cell.asNumber()));
                     break;
                 case BOOLEAN:
-
+                    data.add(String.valueOf(cell.asBoolean()));
                     break;
                 case FORMULA:
-
+                    data.add(String.valueOf(cell.getValue()));
                     break;
                 default: data.add("");
             }
         }
         return data;
+    }
+
+    
+    private InputStream getInputStream(String filePath, String fileUrl) throws IOException {
+        InputStream is;
+        if (fileUrl != null && !fileUrl.isEmpty()) {
+            log.debug("fileUrl={}", fileUrl);
+            URL url = new URL(fileUrl);
+            URLConnection urlc = url.openConnection();
+            is = new BOMInputStream(urlc.getInputStream(),
+                    ByteOrderMark.UTF_8, ByteOrderMark.UTF_16LE,
+                    ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_32LE,
+                    ByteOrderMark.UTF_32BE);
+        } else {
+            is = new BOMInputStream(getStorageInputStream(filePath),
+                    ByteOrderMark.UTF_8, ByteOrderMark.UTF_16LE,
+                    ByteOrderMark.UTF_16BE, ByteOrderMark.UTF_32LE,
+                    ByteOrderMark.UTF_32BE);
+        }
+        return is;
+    }
+
+    public InputStream getStorageInputStream(String filePath) throws IOException {
+        InputStream is = null;
+
+
+
+        if (MY_FILES.toString().equals(fileSource)) {
+            MinioClient minioClient;
+            try {
+                minioClient = new MinioClient(
+                        minioEndpoint, minioAccessKey, minioSecretKey);
+            } catch (InvalidEndpointException | InvalidPortException e) {
+                throw new RuntimeException(e);
+            }
+
+            try {
+                is = minioClient.getObject(minioBucketName, filePath);
+            } catch (InvalidBucketNameException | NoSuchAlgorithmException | InsufficientDataException |
+                    InvalidKeyException | NoResponseException | XmlPullParserException | ErrorResponseException |
+                    InternalException | InvalidArgumentException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        else {
+            Configuration conf = new Configuration(false);
+            conf.set("fs.defaultFS", "hdfs://localhost:9000");
+//            conf.set("fs.defaultFS", "hdfs://hdfs");
+//            conf.set("fs.default.name", conf.get("fs.defaultFS"));
+//            conf.set("dfs.nameservices", "hdfs");
+//            conf.set("dfs.nameservice.id", "hdfs");
+//            conf.set("dfs.ha.namenodes.hdfs", "name-0-node,name-1-node");
+//            conf.set("dfs.namenode.rpc-address.hdfs.name-0-node", hdfsNamenodes[0]);
+//            conf.set("dfs.namenode.rpc-address.hdfs.name-1-node", hdfsNamenodes[1]);
+//            conf.set("dfs.client.failover.proxy.provider.hdfs","org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider");
+
+            FileSystem fs = FileSystem.get(conf);
+            Path path = new Path(filePath);
+
+            is = fs.open(path);
+        }
+
+            return is;
+        
     }
 
     @Override
