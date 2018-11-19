@@ -1,51 +1,33 @@
 package com.fastExcel;
 
-
+import io.minio.MinioClient;
+import io.minio.errors.*;
 import org.apache.commons.io.ByteOrderMark;
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.poi.ss.usermodel.DateUtil;
-import io.minio.MinioClient;
-import io.minio.errors.*;
-import org.apache.commons.io.ByteOrderMark;
-import org.apache.commons.io.input.BOMInputStream;
-import org.dhatim.fastexcel.reader.Cell;
-import org.dhatim.fastexcel.reader.ReadableWorkbook;
-import org.dhatim.fastexcel.reader.Row;
-import org.dhatim.fastexcel.reader.Sheet;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigDecimal;
-import java.net.URL;
-import java.net.URLConnection;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.chrono.ChronoLocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Stream;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.xmlpull.v1.XmlPullParserException;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.net.URLConnection;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
 import static com.fastExcel.DataSourceConfig.sourceTypes.MY_FILES;
-import static com.fastExcel.MinioProperties.*;
 
-public class rFEWorker implements fastExcel {
-
+public class rEWorker implements fastExcel {
     @Value("${minio.endpoint}") String minioEndpoint = "http://127.0.0.1:9000";
     @Value("${minio.accessKey}") String minioAccessKey = "P3OTQAH8VBMJCUS9ZBJG";
     @Value("${minio.secretKey}") String minioSecretKey = "Erj57EC3p4D9EKyd3ZBY+6lLV53fnpA72769EQDk";
@@ -53,18 +35,8 @@ public class rFEWorker implements fastExcel {
 
     private static final Logger log = LoggerFactory.getLogger(rFEWorker.class);
 
-    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static SimpleDateFormat dateFormat = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
 
-    private static SimpleDateFormat FORMAT = new SimpleDateFormat("YYYY-MM-dd HH:mm:ss");
-
-    private static final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm");
-
-    private static final String FILE_SIMPLE = "/simple.xlsx";
-
-    private static final String FILE2 = "/data.xlsx";
-
-    private static final String FILE_ERROR = "/ErrorTypes.xlsx";
-    private Object LocalDateTime;
 
     private String filePath;
     private String fileUrl;
@@ -86,11 +58,7 @@ public class rFEWorker implements fastExcel {
     @Autowired
     private Map<String, String> minioConfig;
 
-    public rFEWorker(Map<String, String> minioConfig) {
-        this.minioConfig = minioConfig;
-    }
-
-    public rFEWorker(String filePath, String fileUrl, String sheetName,
+    public rEWorker(String filePath, String fileUrl, String sheetName,
                      Set<String> columnNames, String type, String fileSource) {
         this.filePath = filePath;
         this.fileUrl = fileUrl;
@@ -100,77 +68,41 @@ public class rFEWorker implements fastExcel {
         this.fileSource = fileSource;
     }
 
-    private static InputStream openResource(String name) {
-        InputStream result = rFESimple.class.getResourceAsStream(name);
-
-        if (result == null) {
-            throw new IllegalStateException("Cannot read resource " + name);
-        }
-        return result;
-    }
-
-
-
     @Override
     public Iterator<Map<String, String>> getIterator() {
-
-//        InputStream is = openResource(FILE_SIMPLE);
-//        InputStream is = openResource(FILE2);
-//        InputStream is = openResource(FILE_ERROR);
-
-        InputStream is = null;https://stackoverflow.com/questions/26460410/how-can-i-analyze-a-heap-dump-in-intellij-memory-leak
+        log.debug("getIterator sheetName={} type={}", sheetName, type);
+        InputStream is = null;
         try {
             is = getInputStream(filePath, fileUrl);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
 
-
-        ReadableWorkbook wb = null;
+        Workbook workbook = null;
         try {
-            wb = new ReadableWorkbook(is);
+            if (type.equals(DataSourceConfig.Types.XLS.toString())) {
+                log.debug("create HSSFWorkbook");
+                workbook = new HSSFWorkbook(is);
+            } else {
+                log.debug("XSSFWorkbook");
+                workbook = new XSSFWorkbook(is);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
 
-//        Optional<Sheet> sheet =  wb.findSheet("Sheet1");
-        Optional<Sheet> sheet =  wb.findSheet(this.sheetName);
-//        Optional<Sheet> sheet =  wb.findSheet("RawErrors");
+        Sheet sheet = workbook.getSheet(this.sheetName);
 
-        Stream<Row> rows = null;
-        Sheet sheet1;
-        Row header;
-        Iterator<Row> rowIt = null;
-        List<String> columns = null;
+        Iterator<Row> iterator = sheet.iterator();
 
-//        sheet1 = sheet.get();
+        Row header = iterator.next();
+        List<String> columns = mapRow(header);
 
-        if (sheet.isPresent()) {
-
-            sheet1 = sheet.get();
-            try {
-                rows =  sheet1.openStream();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-
-            rowIt = rows.iterator();
-            header = rowIt.next();
-            columns = mapRow(header);
-
-        }
-
-        Iterator<Row> finalRowIt = rowIt;
-
-
-        ReadableWorkbook finalWorkbook = wb;
-
-        List<String> finalColumns = columns;
-
+        Workbook finalWorkbook = workbook;
         return new Iterator<Map<String, String>>() {
             @Override
             public boolean hasNext() {
-                if (finalRowIt.hasNext()) {
+                if (iterator.hasNext()) {
                     return true;
                 } else {
                     try {
@@ -184,14 +116,14 @@ public class rFEWorker implements fastExcel {
 
             @Override
             public Map<String, String> next() {
-              Row row = finalRowIt.next();
+                Row row = iterator.next();
                 List<String> data = mapRow(row);
                 Map<String, String> rowData = new HashMap<>();
-                for (int i = 0; i < finalColumns.size(); i++) {
+                for (int i = 0; i < columns.size(); i++) {
                     if (i < data.size()) {
                         for (String columnName : columnNames) {
-                            if (finalColumns.get(i).equals(columnName)) {
-                                rowData.put(finalColumns.get(i), data.get(i));
+                            if (columns.get(i).equals(columnName)) {
+                                rowData.put(columns.get(i), data.get(i));
                             }
                         }
                     }
@@ -202,29 +134,38 @@ public class rFEWorker implements fastExcel {
     }
 
     private List<String> mapRow(Row row) {
-
         List<String> data = new ArrayList<>();
-        for (int count = 0; count < row.getCellCount(); count++) {
-            Cell cell = row.getCell(count);
-//            org.apache.poi.
+        for (int count = 0; count < row.getLastCellNum(); count++) {
+            Cell cell = row.getCell(count, Row.MissingCellPolicy.RETURN_BLANK_AS_NULL);
+
             if (cell == null) {
                 data.add("");
                 continue;
             }
 
-            switch (cell.getType()) {
+            switch (cell.getCellTypeEnum()) {
                 case STRING:
-                    data.add(cell.asString());
+                    data.add(cell.getRichStringCellValue().getString());
                     break;
-                case NUMBER:
-//                    data.add(String.valueOf(cell.asDate()));
-                    data.add(String.valueOf(cell.getRawValue()));
+                case NUMERIC:
+                    if (DateUtil.isCellDateFormatted(cell)) {
+                        data.add(dateFormat.format(cell.getDateCellValue()));
+                    } else {
+                        data.add(String.valueOf(cell.getNumericCellValue()));
+                    }
                     break;
                 case BOOLEAN:
-                    data.add(String.valueOf(cell.asBoolean()));
+                    data.add(String.valueOf(cell.getBooleanCellValue()));
                     break;
                 case FORMULA:
-                    data.add(String.valueOf(cell.getValue()));
+                    switch(cell.getCachedFormulaResultType()) {
+                        case Cell.CELL_TYPE_NUMERIC:
+                            data.add(String.valueOf(cell.getNumericCellValue()));
+                            break;
+                        case Cell.CELL_TYPE_STRING:
+                            data.add(String.valueOf(cell.getRichStringCellValue()));
+                            break;
+                    }
                     break;
                 default: data.add("");
             }
@@ -232,7 +173,6 @@ public class rFEWorker implements fastExcel {
         return data;
     }
 
-    
     private InputStream getInputStream(String filePath, String fileUrl) throws IOException {
         InputStream is;
         if (fileUrl != null && !fileUrl.isEmpty()) {
@@ -253,9 +193,7 @@ public class rFEWorker implements fastExcel {
     }
 
     public InputStream getStorageInputStream(String filePath) throws IOException {
-        InputStream is = null;
-
-
+        InputStream is;
 
         if (MY_FILES.toString().equals(fileSource)) {
             MinioClient minioClient;
@@ -292,9 +230,9 @@ public class rFEWorker implements fastExcel {
             is = fs.open(path);
         }
 
-            return is;
-        
+        return is;
     }
+
 
     @Override
     public void close() throws IOException {

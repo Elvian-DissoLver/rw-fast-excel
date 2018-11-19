@@ -23,14 +23,23 @@ public class main {
         Set<String> columnNames = new HashSet<String>(Arrays.asList("id","name","date","room"));
 //        Set<String> columnNames = new HashSet<String>(Arrays.asList("nama","nim","umur"));
 //        Set<String> columnNames = new HashSet<String>(Arrays.asList("Error","Bang","Que","Non","Val","ErrType","Type","ISERR","ISNA","ErrTypeIsErr"));
-
-//        rFEWorker rFEW = new rFEWorker(
-//                "/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
-//                MY_FILES.toString());
+//        Set<String> columnNames = new HashSet<String>(Arrays.asList("value","yyyymmdd","B1yyyymmdd","B2yyyymmdd","bbbb yyyymmdd","bb bbbb yy yyyy","B1 bbbb eeee yyyy","B2 bbbb eeee yyyy"));
 
         rFEWorker rFEW = new rFEWorker(
-                "/input/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
-                null);
+                "/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
+                MY_FILES.toString());
+
+//        rFEWorker rFEW = new rFEWorker(
+//                "/input/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
+//                null);
+
+//        rFEWorker rFEW = new rFEWorker(
+//                "/calendar_stress_test.xlsx",null,"cal",columnNames,"XLSX",
+//                MY_FILES.toString());
+
+//        rEWorker rEW = new rEWorker(
+//                "/calendar_stress_test.xlsx",null,"cal",columnNames,"XLSX",
+//                MY_FILES.toString());
 
         Iterator<Map<String, String>> iterable = rFEW.getIterator();
 
