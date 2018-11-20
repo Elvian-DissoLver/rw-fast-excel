@@ -217,8 +217,12 @@ public class rFEWorker implements fastExcel {
                     data.add(cell.asString());
                     break;
                 case NUMBER:
-//                    data.add(String.valueOf(cell.asDate()));
-                    data.add(String.valueOf(cell.getRawValue()));
+                    if(cell.asDate().toString().substring(0,4).equals("1900")) {
+                        data.add(String.valueOf(cell.asNumber()));
+                    }
+                    else{
+                        data.add(String.valueOf(cell.asDate()));
+                    }
                     break;
                 case BOOLEAN:
                     data.add(String.valueOf(cell.asBoolean()));
