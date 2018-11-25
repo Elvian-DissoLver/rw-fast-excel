@@ -18,20 +18,28 @@ public class main {
 ////        rFES.testSimple1Cell();
 //        rFES.testSimpleMoreCell();
 
-
-
+//        Set<String> columnNames = new HashSet<String>(Arrays.asList("String1","String2"));
+//        Set<String> columnNames = new HashSet<String>(Arrays.asList("date1","date2"));
         Set<String> columnNames = new HashSet<String>(Arrays.asList("id","name","date","room"));
 //        Set<String> columnNames = new HashSet<String>(Arrays.asList("nama","nim","umur"));
 //        Set<String> columnNames = new HashSet<String>(Arrays.asList("Error","Bang","Que","Non","Val","ErrType","Type","ISERR","ISNA","ErrTypeIsErr"));
 //        Set<String> columnNames = new HashSet<String>(Arrays.asList("value","yyyymmdd","B1yyyymmdd","B2yyyymmdd","bbbb yyyymmdd","bb bbbb yy yyyy","B1 bbbb eeee yyyy","B2 bbbb eeee yyyy"));
 
-        rFEWorker rFEW = new rFEWorker(
-                "/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
-                MY_FILES.toString());
+//        rFEWorker rFEW = new rFEWorker(
+//                "/large_strings.xlsx",null,"longwordslist",columnNames,"XLSX",
+//                MY_FILES.toString());
 
 //        rFEWorker rFEW = new rFEWorker(
-//                "/input/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
-//                null);
+//                "/dates.xlsx",null,"201608",columnNames,"XLSX",
+//                MY_FILES.toString());
+
+//        rFEWorker rFEW = new rFEWorker(
+//                "/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
+//                MY_FILES.toString());
+
+        rFEWorker rFEW = new rFEWorker(
+                "/input/simple.xlsx",null,"Feuil1",columnNames,"XLSX",
+                null);
 
 //        rFEWorker rFEW = new rFEWorker(
 //                "/calendar_stress_test.xlsx",null,"cal",columnNames,"XLSX",

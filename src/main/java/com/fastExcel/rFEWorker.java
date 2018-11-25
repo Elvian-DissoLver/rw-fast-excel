@@ -6,17 +6,13 @@ import org.apache.commons.io.input.BOMInputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.poi.ss.usermodel.DateUtil;
 import io.minio.MinioClient;
-import io.minio.errors.*;
-import org.apache.commons.io.ByteOrderMark;
-import org.apache.commons.io.input.BOMInputStream;
+import io.minio.errors.*;;
 import org.dhatim.fastexcel.reader.Cell;
 import org.dhatim.fastexcel.reader.ReadableWorkbook;
 import org.dhatim.fastexcel.reader.Row;
 import org.dhatim.fastexcel.reader.Sheet;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
+
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -118,7 +114,8 @@ public class rFEWorker implements fastExcel {
 //        InputStream is = openResource(FILE2);
 //        InputStream is = openResource(FILE_ERROR);
 
-        InputStream is = null;https://stackoverflow.com/questions/26460410/how-can-i-analyze-a-heap-dump-in-intellij-memory-leak
+        InputStream is = null;
+
         try {
             is = getInputStream(filePath, fileUrl);
         } catch (IOException e) {
@@ -218,11 +215,12 @@ public class rFEWorker implements fastExcel {
                     break;
                 case NUMBER:
                     if(cell.asDate().toString().substring(0,4).equals("1900")) {
-                        data.add(String.valueOf(cell.asNumber()));
+                        data.add(String.valueOf(cell.getRawValue()));
                     }
                     else{
                         data.add(String.valueOf(cell.asDate()));
                     }
+//                    data.add(String.valueOf(cell.asNumber()));
                     break;
                 case BOOLEAN:
                     data.add(String.valueOf(cell.asBoolean()));
@@ -259,8 +257,6 @@ public class rFEWorker implements fastExcel {
     public InputStream getStorageInputStream(String filePath) throws IOException {
         InputStream is = null;
 
-
-
         if (MY_FILES.toString().equals(fileSource)) {
             MinioClient minioClient;
             try {
@@ -281,14 +277,6 @@ public class rFEWorker implements fastExcel {
         else {
             Configuration conf = new Configuration(false);
             conf.set("fs.defaultFS", "hdfs://localhost:9000");
-//            conf.set("fs.defaultFS", "hdfs://hdfs");
-//            conf.set("fs.default.name", conf.get("fs.defaultFS"));
-//            conf.set("dfs.nameservices", "hdfs");
-//            conf.set("dfs.nameservice.id", "hdfs");
-//            conf.set("dfs.ha.namenodes.hdfs", "name-0-node,name-1-node");
-//            conf.set("dfs.namenode.rpc-address.hdfs.name-0-node", hdfsNamenodes[0]);
-//            conf.set("dfs.namenode.rpc-address.hdfs.name-1-node", hdfsNamenodes[1]);
-//            conf.set("dfs.client.failover.proxy.provider.hdfs","org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider");
 
             FileSystem fs = FileSystem.get(conf);
             Path path = new Path(filePath);
