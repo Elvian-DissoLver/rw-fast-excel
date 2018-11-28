@@ -29,8 +29,8 @@ import static com.fastExcel.DataSourceConfig.sourceTypes.MY_FILES;
 
 public class rEWorker implements fastExcel {
     @Value("${minio.endpoint}") String minioEndpoint = "http://127.0.0.1:9000";
-    @Value("${minio.accessKey}") String minioAccessKey = "P3OTQAH8VBMJCUS9ZBJG";
-    @Value("${minio.secretKey}") String minioSecretKey = "Erj57EC3p4D9EKyd3ZBY+6lLV53fnpA72769EQDk";
+    @Value("${minio.accessKey}") String minioAccessKey = "FVIG25MUBNDXQVN190H2";
+    @Value("${minio.secretKey}") String minioSecretKey = "PSfjY4VTZaJCWMWnf6QnRLu4P0QKJQYEotMPgK9I";
     @Value("${minio.bucket.name}") String minioBucketName = "input";
 
     private static final Logger log = LoggerFactory.getLogger(rFEWorker.class);
