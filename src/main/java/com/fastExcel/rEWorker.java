@@ -69,6 +69,48 @@ public class rEWorker implements fastExcel {
     }
 
     @Override
+    public List<String> getHeader() {
+        List<String> header = new ArrayList<>();
+
+        InputStream is;
+        try {
+            is = getInputStream(filePath, fileUrl);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        Workbook workbook = null;
+        try {
+            if (type.equals(DataSourceConfig.Types.XLS.toString())) {
+                log.debug("create HSSFWorkbook");
+                workbook = new HSSFWorkbook(is);
+            } else {
+                log.debug("XSSFWorkbook");
+                workbook = new XSSFWorkbook(is);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        Sheet sheet = workbook.getSheet(this.sheetName);
+        Row row = sheet.getRow(0);
+        header = mapRow(row);
+
+        try {
+            workbook.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return header;
+    }
+
+    @Override
+    public SampleFile getSample() {
+        return null;
+    }
+
+    @Override
     public Iterator<Map<String, String>> getIterator() {
         log.debug("getIterator sheetName={} type={}", sheetName, type);
         InputStream is = null;

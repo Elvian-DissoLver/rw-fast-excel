@@ -106,6 +106,15 @@ public class rFEWorker implements fastExcel {
     }
 
 
+    @Override
+    public List<String> getHeader() {
+        return null;
+    }
+
+    @Override
+    public SampleFile getSample() {
+        return null;
+    }
 
     @Override
     public Iterator<Map<String, String>> getIterator() {
